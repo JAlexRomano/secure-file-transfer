@@ -91,9 +91,6 @@ def encrypt_file(input_path: str, output_path: str, password: str) -> None:
         outfile.write(iv)       # 16 bytes
         outfile.write(mac_tag)  # 32 bytes
         outfile.write(ciphertext)
-
-    print(f"[✓] Encrypted: {input_path} → {output_path}")
-    print(f"    Salt: {salt.hex()}  IV: {iv.hex()}")
 # ── Decryption ────────────────────────────────────────────────────────────────
     """
     Decrypt and verify a file encrypted by encrypt_file().
@@ -162,8 +159,6 @@ def decrypt_file(input_path: str, output_path: str, password: str) -> None:
         final = unpadder.update(decryptor.finalize()) + unpadder.finalize()
         if final:
             outfile.write(final)
-
-    print(f"[✓] Decrypted: {input_path} → {output_path}")
 
 # ── Quick self-test ───────────────────────────────────────────────────────────
 if __name__ == "__main__":
