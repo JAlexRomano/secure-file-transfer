@@ -164,3 +164,44 @@ def decrypt_file(input_path: str, output_path: str, password: str) -> None:
             outfile.write(final)
 
     print(f"[✓] Decrypted: {input_path} → {output_path}")
+
+# ── Quick self-test ───────────────────────────────────────────────────────────
+if __name__ == "__main__":
+    import tempfile
+
+    print("Running self-test...")
+
+    original = b"Hello, secure world! " * 5000  # ~100 KB of test data
+    password = "test-password-123"
+
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+        f.write(original)
+        plain_path = f.name
+
+    enc_path   = plain_path + ".enc"
+    dec_path   = plain_path + ".dec"
+
+    encrypt_file(plain_path, enc_path, password)
+    decrypt_file(enc_path, dec_path, password)
+
+    with open(dec_path, "rb") as f:
+        recovered = f.read()
+
+    assert recovered == original, "Self-test FAILED: decrypted content does not match original!"
+    print("[✓] Self-test passed — plaintext recovered correctly.")
+
+    # Tamper test
+    print("\nTesting tamper detection...")
+    with open(enc_path, "r+b") as f:
+        f.seek(HEADER_SIZE + 10)
+        f.write(b"\xff\xff")    # corrupt 2 bytes of ciphertext
+
+    try:
+        decrypt_file(enc_path, dec_path, password)
+        print("[✗] Tamper test FAILED — should have raised InvalidSignature!")
+    except InvalidSignature as e:
+        print(f"[✓] Tamper detected correctly: {e}")
+
+    # Cleanup
+    for p in (plain_path, enc_path, dec_path):
+        os.unlink(p)
