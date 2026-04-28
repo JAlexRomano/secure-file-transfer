@@ -94,3 +94,73 @@ def encrypt_file(input_path: str, output_path: str, password: str) -> None:
 
     print(f"[✓] Encrypted: {input_path} → {output_path}")
     print(f"    Salt: {salt.hex()}  IV: {iv.hex()}")
+# ── Decryption ────────────────────────────────────────────────────────────────
+    """
+    Decrypt and verify a file encrypted by encrypt_file().
+
+    Steps:
+      1. Read and parse header: salt | IV | HMAC
+      2. Re-derive keys from password + salt
+      3. Verify HMAC over (IV + ciphertext) — BEFORE decrypting
+      4. Decrypt ciphertext in chunks
+      5. Strip PKCS7 padding from final chunk
+
+    Args:
+        input_path:  Path to the encrypted file.
+        output_path: Path to write the decrypted plaintext.
+        password:    Password used during encryption.
+
+    Raises:
+        InvalidSignature: If the HMAC check fails (file tampered or wrong password).
+        ValueError:       If the file is too short to contain a valid header.
+    """
+def decrypt_file(input_path: str, output_path: str, password: str) -> None:
+    with open(input_path, "rb") as infile:
+        header = infile.read(HEADER_SIZE)
+
+        if len(header) < HEADER_SIZE:
+            raise ValueError(
+                f"File too short to be valid (got {len(header)} bytes, need {HEADER_SIZE})"
+            )
+
+        salt = header[:SALT_SIZE]
+        iv = header[SALT_SIZE:SALT_SIZE + IV_SIZE]
+        stored_mac = header[SALT_SIZE + IV_SIZE:]
+
+        # Read ciphertext for HMAC verification
+        ciphertext = infile.read()
+
+    # Re-derive keys
+    enc_key, mac_key, _ = derive_keys(password, salt)
+
+    # Verify HMAC FIRST — constant-time comparison prevents timing attacks
+    h = hmac.HMAC(mac_key, hashes.SHA256())
+    h.update(iv + ciphertext)
+    try:
+        h.verify(stored_mac)
+    except InvalidSignature:
+        raise InvalidSignature(
+            "HMAC verification failed — file may be corrupted, tampered with, or the password is wrong."
+        )
+
+    # Decrypt in chunks
+    cipher = Cipher(algorithms.AES(enc_key), modes.CBC(iv))
+    decryptor = cipher.decryptor()
+    unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
+
+    with open(output_path, "wb") as outfile:
+        offset = 0
+        while offset < len(ciphertext):
+            chunk = ciphertext[offset:offset + CHUNK_SIZE]
+            offset += CHUNK_SIZE
+            decrypted_chunk = decryptor.update(chunk)
+            unpadded = unpadder.update(decrypted_chunk)
+            if unpadded:
+                outfile.write(unpadded)
+
+        # Finalize decryption and unpadding
+        final = unpadder.update(decryptor.finalize()) + unpadder.finalize()
+        if final:
+            outfile.write(final)
+
+    print(f"[✓] Decrypted: {input_path} → {output_path}")
