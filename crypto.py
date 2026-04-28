@@ -7,7 +7,6 @@ from cryptography.hazmat.primitives import padding, hmac, hashes
 from cryptography.exceptions import InvalidSignature
 
 # ── Constants ────────────────────────────────────────────────────────────────
-
 SALT_SIZE       = 16        # bytes
 IV_SIZE         = 16        # bytes — AES block size
 HMAC_SIZE       = 32        # bytes — SHA-256 output
