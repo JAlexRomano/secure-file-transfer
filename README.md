@@ -11,3 +11,14 @@ Design:
   - Two keys derived from one password via PBKDF2-HMAC-SHA256 (64 bytes total)
   - Chunked streaming to handle arbitrarily large files
   - HMAC verified before any decryption begins
+
+cli.py — Command-line interface for the AES-256-CBC secure file transfer tool.
+
+Usage:
+    python cli.py encrypt <input>              # output: <input>.enc
+    python cli.py decrypt <input>.enc          # output: <input> (stripped .enc)
+    python cli.py encrypt <input> --verbose
+    python cli.py decrypt <input>.enc --verbose
+
+Password is always prompted interactively — never passed as an argument.
+Encrypt prompts twice for confirmation to prevent typo-lockout.
