@@ -6,6 +6,12 @@ import time
 from cryptography.exceptions import InvalidSignature
 from crypto import decrypt_file, encrypt_file, HEADER_SIZE
 
+class SecureTransferParser(argparse.ArgumentParser):
+    def error(self, message):
+        self.print_help()
+        print(f"\n[✗] {message}")
+        sys.exit(1)
+
 # ── Output Path Helpers ───────────────────────────────────────────────────────
 def make_encrypt_output(input_path: str) -> str:
     return input_path + ".enc" # Append .enc to the input path
@@ -158,9 +164,9 @@ def handle_decrypt(args: argparse.Namespace) -> None:
     print(f"[✓] Decrypted → {output_path}")
     print_verbose_stats(input_path, output_path, elapsed, args.verbose)
 
-    # ── Argument Parser ───────────────────────────────────────────────────────────
+# ── Argument Parser ───────────────────────────────────────────────────────────
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
+    parser = SecureTransferParser(
         prog="cli.py",
         description="AES-256-CBC encrypted file transfer tool",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -185,7 +191,7 @@ def build_parser() -> argparse.ArgumentParser:
         "encrypt",
         help="encrypt a file  (output: <file>.enc)",
         description="Encrypt a file using AES-256-CBC + HMAC-SHA256.",
-        )
+    )
     enc_parser.add_argument("input", help="path to the plaintext file")
     enc_parser.add_argument(
         "--verbose", "-v", action="store_true", help="show file sizes, timing, and throughput"
