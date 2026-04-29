@@ -297,5 +297,64 @@ def receive_file(
         conn.close()
         server.close()
 
+# ── Argument Parser ───────────────────────────────────────────────────────────
+def build_parser() -> argparse.ArgumentParser:
+
+    class TransferParser(argparse.ArgumentParser):
+        def error(self, message):
+            self.print_help()
+            print(f"\n[✗] {message}")
+            sys.exit(1)
+
+    parser = TransferParser(
+        prog="transfer.py",
+        description="Streaming AES-256-CBC encrypted file transfer tool",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+            examples:
+            # Receiver listens first
+            python transfer.py receive --port 5555
+
+            # Sender connects and streams
+            python transfer.py send secret.pdf --host 192.168.1.10 --port 5555
+
+            # With verbose output
+            python transfer.py send secret.pdf --host 192.168.1.10 --port 5555 --verbose
+            python transfer.py receive --port 5555 --verbose
+
+            # Save received file to a specific directory
+            python transfer.py receive --port 5555 --output-dir ~/received
+        """,
+    )
+
+    parser.add_argument("--version", action="version", version="%(prog)s 1.0.0")
+
+    subparsers = parser.add_subparsers(dest="command", metavar="command")
+    subparsers.required = True
+
+    send_parser = subparsers.add_parser( # Sends subcommand
+        "send",
+        help="encrypt and stream a file to a receiver",
+        description="Encrypt and stream a file to a waiting receiver.",
+    )
+    send_parser.add_argument("input", help="path to the file to send")
+    send_parser.add_argument("--host", required=True, help="receiver's IP address or hostname")
+    send_parser.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"port to connect to (default: {DEFAULT_PORT})")
+    send_parser.add_argument("--verbose", "-v", action="store_true", help="show progress, timing, and throughput")
+    send_parser.set_defaults(func=handle_send)
+
+    recv_parser = subparsers.add_parser( # Receives subcommand
+        "receive",
+        help="listen for and decrypt an incoming file",
+        description="Listen for an incoming encrypted file and decrypt it on arrival.",
+    )
+    recv_parser.add_argument("--host", default=DEFAULT_HOST, help=f"interface to listen on (default: {DEFAULT_HOST})")
+    recv_parser.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"port to listen on (default: {DEFAULT_PORT})")
+    recv_parser.add_argument("--output-dir", default=".", help="directory to save received files (default: current directory)")
+    recv_parser.add_argument("--verbose", "-v", action="store_true", help="show progress, timing, and throughput")
+    recv_parser.set_defaults(func=handle_receive)
+
+    return parser
+
 if __name__=="__main__":
     print('Hello, world!')
