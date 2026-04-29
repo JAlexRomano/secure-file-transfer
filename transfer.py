@@ -356,5 +356,21 @@ def build_parser() -> argparse.ArgumentParser:
 
     return parser
 
+# ── Subcommand Handlers ───────────────────────────────────────────────────────
+def handle_send(args: argparse.Namespace) -> None:
+    password = getpass.getpass("Password: ")
+    if not password:
+        print("[!] Password cannot be empty.")
+        sys.exit(1)
+    send_file(args.host, args.port, args.input, password, args.verbose)
+
+
+def handle_receive(args: argparse.Namespace) -> None:
+    password = getpass.getpass("Password: ")
+    if not password:
+        print("[!] Password cannot be empty.")
+        sys.exit(1)
+    receive_file(args.host, args.port, args.output_dir, password, args.verbose)
+
 if __name__=="__main__":
     print('Hello, world!')
