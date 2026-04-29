@@ -159,7 +159,7 @@ def decrypt_file(input_path: str, output_path: str, password: str) -> None:
         if final:
             outfile.write(final)
 
-# ── Quick self-test ───────────────────────────────────────────────────────────
+# ── For testing purposes ───────────────────────────────────────────────────────────
 if __name__ == "__main__":
     import tempfile
 

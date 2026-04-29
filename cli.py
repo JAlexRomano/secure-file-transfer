@@ -62,9 +62,98 @@ def print_verbose_stats(
 
 
 # Gets called by print_verbose_stats to make file size human-readable
-def _fmt_size(size_bytes: int) -> str: # 
+def _fmt_size(size_bytes: int) -> str: #
     for unit in ("B", "KB", "MB", "GB"):
         if size_bytes < 1024:
             return f"{size_bytes:.1f} {unit}"
         size_bytes /= 1024
     return f"{size_bytes:.1f} TB"
+
+# ── Subcommand Handlers ───────────────────────────────────────────────────────
+def handle_encrypt(args: argparse.Namespace) -> None:
+    input_path  = args.input
+    output_path = make_encrypt_output(input_path)
+
+    # Pre-flight checks
+    if not os.path.isfile(input_path):
+        print(f"[✗] File not found: {input_path}")
+        sys.exit(1)
+
+    if os.path.exists(output_path): # Checks if file name already exists
+        print(f"[!] Output file already exists: {output_path}")
+        overwrite = input("    Overwrite? [y/N]: ").strip().lower()
+        if overwrite != "y":
+            print("[−] Aborted.")
+            sys.exit(0)
+
+    verbose_print(f"Input:  {input_path} ({_fmt_size(os.path.getsize(input_path))})", args.verbose)
+    verbose_print(f"Output: {output_path}", args.verbose)
+
+    password = prompt_password_encrypt()
+
+    print(f"[~] Encrypting...")
+    start = time.perf_counter()
+
+    try:
+        encrypt_file(input_path, output_path, password)
+    except FileNotFoundError as e:
+        print(f"[✗] {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"[✗] Encryption failed: {e}")
+        sys.exit(1)
+
+    elapsed = time.perf_counter() - start
+    print(f"[✓] Encrypted → {output_path}")
+    print_verbose_stats(input_path, output_path, elapsed, args.verbose)
+
+
+def handle_decrypt(args: argparse.Namespace) -> None:
+    input_path  = args.input
+    output_path = make_decrypt_output(input_path)
+
+    # Pre-flight checks
+    if not os.path.isfile(input_path):
+        print(f"[✗] File not found: {input_path}")
+        sys.exit(1)
+
+    file_size = os.path.getsize(input_path)
+    if file_size < HEADER_SIZE:
+        print(f"[✗] File is too small to be a valid encrypted file ({_fmt_size(file_size)})")
+        sys.exit(1)
+
+    if os.path.exists(output_path):
+        print(f"[!] Output file already exists: {output_path}")
+        overwrite = input("    Overwrite? [y/N]: ").strip().lower()
+        if overwrite != "y":
+            print("[−] Aborted.")
+            sys.exit(0)
+
+    verbose_print(f"Input:  {input_path} ({_fmt_size(file_size)})", args.verbose)
+    verbose_print(f"Output: {output_path}", args.verbose)
+
+    password = prompt_password_decrypt() # Prompts the user to enter a password
+
+    print(f"[~] Decrypting...")
+    start = time.perf_counter()
+
+    try:
+        decrypt_file(input_path, output_path, password) # Calls decrypt_file() from crypto.py
+    except InvalidSignature: # Fails if the HMAC check fails
+        print("[✗] Authentication failed — wrong password or file has been tampered with.")
+        if os.path.exists(output_path): # Removes partial output if it was created
+            os.remove(output_path)
+        sys.exit(1)
+    except ValueError as e: # Fails if file is too short to contain a valid header
+        print(f"[✗] Invalid file format: {e}")
+        sys.exit(1)
+    except FileNotFoundError as e:
+        print(f"[✗] {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"[✗] Decryption failed: {e}")
+        sys.exit(1)
+
+    elapsed = time.perf_counter() - start # Tracks working time for verbose output
+    print(f"[✓] Decrypted → {output_path}")
+    print_verbose_stats(input_path, output_path, elapsed, args.verbose)
