@@ -6,6 +6,10 @@ crypto.py — AES-256-CBC + HMAC-SHA256 encrypted file transfer utility.
 File format (binary layout):
   [ salt (16) ][ iv (16) ][ hmac (32) ][ ciphertext (variable) ]
 
+Usage:
+  - Use `encrypt/decrypt` and `filename` as argument to cli.py
+  - Use --help flag for help with syntax
+
 Design:
   - Encrypt-then-MAC over IV + ciphertext
   - Two keys derived from one password via PBKDF2-HMAC-SHA256 (64 bytes total)
