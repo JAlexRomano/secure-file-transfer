@@ -182,7 +182,7 @@ if __name__ == "__main__":
         recovered = f.read()
 
     assert recovered == original, "Self-test FAILED: decrypted content does not match original!"
-    print("[✓] Self-test passed — plaintext recovered correctly.")
+    print("[✓] Self-test passed — plaintext recovered correctly")
 
     # Tamper test
     print("\nTesting tamper detection...")
