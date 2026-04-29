@@ -13,7 +13,6 @@ from cryptography.exceptions import InvalidSignature
 from crypto import derive_keys, CHUNK_SIZE, IV_SIZE, SALT_SIZE, HMAC_SIZE
 
 # ── Constants ─────────────────────────────────────────────────────────────────
-
 DEFAULT_PORT    = 5555
 DEFAULT_HOST    = "0.0.0.0"
 BACKLOG         = 1             # Only accept one connection at a time
@@ -51,3 +50,6 @@ def fmt_speed(bytes_count: int, elapsed: float) -> str:
 def verbose_print(message: str, verbose: bool) -> None:
     if verbose:
         print(f"    {message}")
+
+if __name__=="__main__":
+    print('Placeholder')
