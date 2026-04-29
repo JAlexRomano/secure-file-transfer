@@ -159,5 +159,143 @@ def send_file(
     finally:
         sock.close()
 
+# ── Receive ───────────────────────────────────────────────────────────────────
+
+def receive_file(
+    host: str,
+    port: int,
+    output_dir: str,
+    password: str,
+    verbose: bool = False,
+) -> None:
+    os.makedirs(output_dir, exist_ok=True)
+
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+    try:
+        server.bind((host, port))
+    except OSError as e:
+        print(f"[✗] Could not bind to {host}:{port} — {e}")
+        sys.exit(1)
+
+    server.listen(BACKLOG)
+    print(f"[~] Listening on {host}:{port}... (Ctrl+C to stop)")
+
+    try:
+        conn, addr = server.accept()
+    except KeyboardInterrupt:
+        print("\n[−] Stopped.")
+        server.close()
+        sys.exit(0)
+
+    print(f"[✓] Connection from {addr[0]}:{addr[1]}")
+
+    temp_path   = None
+    final_path  = None
+
+    try:
+        fname_len   = struct.unpack(">H", recvall(conn, 2))[0]
+        filename    = recvall(conn, fname_len).decode("utf-8")
+        final_path  = os.path.join(output_dir, filename) # 1. Receives filename
+
+        verbose_print(f"Filename: {filename}", verbose)
+
+        # 2. Receive file size
+        file_size = struct.unpack(">Q", recvall(conn, 8))[0] # 2. Receives file size
+        verbose_print(f"Size:     {fmt_size(file_size)}", verbose)
+
+        salt = recvall(conn, SALT_SIZE) # 3. Receives salt + IV
+        iv   = recvall(conn, IV_SIZE)
+        verbose_print(f"Salt:     {salt.hex()}", verbose)
+        verbose_print(f"IV:       {iv.hex()}", verbose)
+
+        enc_key, mac_key, _ = derive_keys(password, salt) # 4. Re-derive keys
+
+        cipher    = Cipher(algorithms.AES(enc_key), modes.CBC(iv))
+        decryptor = cipher.decryptor()
+        unpadder  = padding.PKCS7(algorithms.AES.block_size).unpadder()
+        h         = hmac.HMAC(mac_key, hashes.SHA256())
+
+        # 5. Receive + decrypt chunks into temp file
+        # Total encrypted size = file_size padded to AES block boundary
+        # We receive until HMAC_SIZE bytes remain
+        # Buffer a sliding window to separate ciphertext from trailing HMAC
+
+        temp_fd, temp_path = tempfile.mkstemp(dir=output_dir, prefix=".tmp_recv_")
+
+        bytes_received  = 0
+        start           = time.perf_counter()
+        block_size      = algorithms.AES.block_size // 8  # 16 bytes
+        padded_size     = ((file_size // block_size) + 1) * block_size
+        remaining       = padded_size # Pads file_size up to next AES block boundary for expected ciphertext size
+
+        print(f"[~] Receiving {fmt_size(file_size)}...")
+
+        with os.fdopen(temp_fd, "wb") as tmpfile:
+            buf = b"" # Uses a buffer to cleanly separate ciphertext from the trailing HMAC
+            while remaining > 0:
+                to_read = min(CHUNK_SIZE, remaining)
+                chunk   = recvall(conn, to_read)
+                remaining -= len(chunk)
+
+                h.update(chunk)
+                decrypted = decryptor.update(chunk)
+                unpadded  = unpadder.update(decrypted)
+                if unpadded:
+                    tmpfile.write(unpadded)
+
+                bytes_received += len(chunk)
+                if verbose:
+                    pct = (bytes_received / padded_size * 100)
+                    print(f"\r    Progress: {min(pct, 100):.1f}%", end="", flush=True)
+
+
+            final_decrypted = unpadder.update(decryptor.finalize()) + unpadder.finalize()
+            if final_decrypted: # Finalizes decryption and unpads the file
+                tmpfile.write(final_decrypted)
+
+        if verbose:
+            print()  # newline after progress
+
+        received_mac = recvall(conn, HMAC_SIZE)
+        elapsed      = time.perf_counter() - start
+
+        try:
+            h.verify(received_mac) # 6. Receive and verify HMAC
+        except InvalidSignature:
+            print("[✗] HMAC verification failed — file may be corrupted or tampered with.")
+            conn.sendall(STATUS_ERROR)
+            os.remove(temp_path)
+            temp_path = None
+            sys.exit(1)
+
+        if os.path.exists(final_path):
+            print(f"[!] Output file already exists: {final_path} — overwriting.")
+
+        os.replace(temp_path, final_path) # 7. Rename temp → final output path on success
+        temp_path = None
+
+        conn.sendall(STATUS_OK)
+        print(f"[✓] Received and verified → {final_path}")
+
+        if verbose:
+            print(f"    Elapsed:  {elapsed:.3f}s")
+            print(f"    Speed:    {fmt_speed(file_size, elapsed)}")
+
+    except (ConnectionError, struct.error) as e:
+        print(f"[✗] Transfer error: {e}")
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
+        try:
+            conn.sendall(STATUS_ERROR)
+        except Exception:
+            pass
+        sys.exit(1)
+
+    finally:
+        conn.close()
+        server.close()
+
 if __name__=="__main__":
     print('Hello, world!')
