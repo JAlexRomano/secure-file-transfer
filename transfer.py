@@ -372,5 +372,12 @@ def handle_receive(args: argparse.Namespace) -> None:
         sys.exit(1)
     receive_file(args.host, args.port, args.output_dir, password, args.verbose)
 
-if __name__=="__main__":
-    print('Hello, world!')
+# ── Main ───────────────────────────────────────────────────────────────
+def main() -> None:
+    parser = build_parser()
+    args = parser.parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()
