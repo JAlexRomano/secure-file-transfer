@@ -13,18 +13,18 @@ Design:
 
 cli.py — Command-line interface for the AES-256-CBC secure file transfer tool.
 Usage:
-    python cli.py encrypt <input>              # output: <input>.enc
-    python cli.py decrypt <input>.enc          # output: <input> (stripped .enc)
-    python cli.py encrypt <input> --verbose
-    python cli.py decrypt <input>.enc --verbose
+    - python cli.py encrypt <input>              # output: <input>.enc
+    - python cli.py decrypt <input>.enc          # output: <input> (stripped .enc)
+    - python cli.py encrypt <input> --verbose
+    - python cli.py decrypt <input>.enc --verbose
 Password is always prompted interactively — never passed as an argument.
 Encrypt prompts twice for confirmation to prevent typo-lockout.
 
 
 transfer.py — Streaming AES-256-CBC + HMAC-SHA256 secure file transfer over raw sockets.
 Usage:
-    python transfer.py recieve --port <input>
-    python transfer send <input> --host <input> --port <input>
+    - python transfer.py recieve --port <input>
+    - python transfer send <input> --host <input> --port <input>
 Example inputs:
     python transfer.py receive --port 5555 --verbose
     python transfer.py send secret.pdf --host 127.0.0.1 --port 5555 --verbose
