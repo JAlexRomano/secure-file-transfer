@@ -157,3 +157,51 @@ def handle_decrypt(args: argparse.Namespace) -> None:
     elapsed = time.perf_counter() - start # Tracks working time for verbose output
     print(f"[✓] Decrypted → {output_path}")
     print_verbose_stats(input_path, output_path, elapsed, args.verbose)
+
+    # ── Argument Parser ───────────────────────────────────────────────────────────
+    def build_parser() -> argparse.ArgumentParser:
+        parser = argparse.ArgumentParser(
+            prog="cli.py",
+            description="AES-256-CBC encrypted file transfer tool",
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            epilog="""
+    examples:
+      python cli.py encrypt report.pdf
+      python cli.py decrypt report.pdf.enc
+      python cli.py encrypt report.pdf --verbose
+      python cli.py decrypt report.pdf.enc --verbose
+            """,
+        )
+
+        parser.add_argument(
+            "--version", action="version", version="%(prog)s 1.0.0"
+        )
+
+        subparsers = parser.add_subparsers(dest="command", metavar="command")
+        subparsers.required = True
+
+        # encrypt subcommand
+        enc_parser = subparsers.add_parser(
+            "encrypt",
+            help="encrypt a file  (output: <file>.enc)",
+            description="Encrypt a file using AES-256-CBC + HMAC-SHA256.",
+        )
+        enc_parser.add_argument("input", help="path to the plaintext file")
+        enc_parser.add_argument(
+            "--verbose", "-v", action="store_true", help="show file sizes, timing, and throughput"
+        )
+        enc_parser.set_defaults(func=handle_encrypt)
+
+        # decrypt subcommand
+        dec_parser = subparsers.add_parser(
+            "decrypt",
+            help="decrypt a file  (output: <file> with .enc stripped)",
+            description="Decrypt and verify a file encrypted by this tool.",
+        )
+        dec_parser.add_argument("input", help="path to the encrypted .enc file")
+        dec_parser.add_argument(
+            "--verbose", "-v", action="store_true", help="show file sizes, timing, and throughput"
+        )
+        dec_parser.set_defaults(func=handle_decrypt)
+
+        return parser
