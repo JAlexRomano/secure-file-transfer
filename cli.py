@@ -8,16 +8,16 @@ from crypto import decrypt_file, encrypt_file, HEADER_SIZE
 
 # ── Output Path Helpers ───────────────────────────────────────────────────────
 def make_encrypt_output(input_path: str) -> str:
-    return input_path + ".enc" # Append .enc to the input path
+    return input_path + ".enc"
 
 def make_decrypt_output(input_path: str) -> str:
     if input_path.endswith(".enc"):
-        return input_path[:-4] # Strips .enc from the input path
-    return input_path + ".dec" # Falls back to <input>.dec if the file doesn't end in .enc
+        return input_path[:-4]
+    return input_path + ".dec"
 
 # ── Password Prompt ───────────────────────────────────────────────────────────
-def prompt_password_encrypt() -> str: # Prompt for a password twice and verify they match
-    while True: # Loops until the user enters matching non-empty passwords
+def prompt_password_encrypt() -> str:
+    while True:
         password = getpass.getpass("Password: ")
         if not password:
             print("[!] Password cannot be empty. Try again.")
@@ -29,7 +29,7 @@ def prompt_password_encrypt() -> str: # Prompt for a password twice and verify t
         return password
 
 
-def prompt_password_decrypt() -> str: #Prompts the user for a password once and returns it
+def prompt_password_decrypt() -> str:
     password = getpass.getpass("Password: ")
     if not password:
         print("[!] Password cannot be empty.")
@@ -38,7 +38,7 @@ def prompt_password_decrypt() -> str: #Prompts the user for a password once and 
 
 # ── Verbose Helpers ───────────────────────────────────────────────────────────
 def verbose_print(message: str, verbose: bool) -> None:
-    if verbose: # Only print if verbose mode is enabled
+    if verbose:
         print(f"    {message}")
 
 def print_verbose_stats(
@@ -46,7 +46,7 @@ def print_verbose_stats(
     output_path: str,
     elapsed: float,
     verbose: bool,
-) -> None: # Prints file size and timing info in verbose mode
+) -> None:
     if not verbose:
         return
 
@@ -61,8 +61,7 @@ def print_verbose_stats(
         print(f"    Speed:   {throughput:.2f} MB/s")
 
 
-# Gets called by print_verbose_stats to make file size human-readable
-def _fmt_size(size_bytes: int) -> str: #
+def _fmt_size(size_bytes: int) -> str:
     for unit in ("B", "KB", "MB", "GB"):
         if size_bytes < 1024:
             return f"{size_bytes:.1f} {unit}"
@@ -79,7 +78,7 @@ def handle_encrypt(args: argparse.Namespace) -> None:
         print(f"[✗] File not found: {input_path}")
         sys.exit(1)
 
-    if os.path.exists(output_path): # Checks if file name already exists
+    if os.path.exists(output_path):
         print(f"[!] Output file already exists: {output_path}")
         overwrite = input("    Overwrite? [y/N]: ").strip().lower()
         if overwrite != "y":
@@ -132,19 +131,19 @@ def handle_decrypt(args: argparse.Namespace) -> None:
     verbose_print(f"Input:  {input_path} ({_fmt_size(file_size)})", args.verbose)
     verbose_print(f"Output: {output_path}", args.verbose)
 
-    password = prompt_password_decrypt() # Prompts the user to enter a password
+    password = prompt_password_decrypt()
 
     print(f"[~] Decrypting...")
     start = time.perf_counter()
 
     try:
-        decrypt_file(input_path, output_path, password) # Calls decrypt_file() from crypto.py
-    except InvalidSignature: # Fails if the HMAC check fails
+        decrypt_file(input_path, output_path, password)
+    except InvalidSignature:
         print("[✗] Authentication failed — wrong password or file has been tampered with.")
-        if os.path.exists(output_path): # Removes partial output if it was created
+        if os.path.exists(output_path):  # remove partial output on auth failure
             os.remove(output_path)
         sys.exit(1)
-    except ValueError as e: # Fails if file is too short to contain a valid header
+    except ValueError as e:
         print(f"[✗] Invalid file format: {e}")
         sys.exit(1)
     except FileNotFoundError as e:
@@ -154,7 +153,7 @@ def handle_decrypt(args: argparse.Namespace) -> None:
         print(f"[✗] Decryption failed: {e}")
         sys.exit(1)
 
-    elapsed = time.perf_counter() - start # Tracks working time for verbose output
+    elapsed = time.perf_counter() - start
     print(f"[✓] Decrypted → {output_path}")
     print_verbose_stats(input_path, output_path, elapsed, args.verbose)
 
@@ -213,7 +212,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 # ── Main ───────────────────────────────────────────────────────────────
-def main() -> None: # Calls all functions
+def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
     args.func(args)

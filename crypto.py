@@ -1,6 +1,4 @@
 import os
-import hmac as hmac_module
-import hashlib
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding, hmac, hashes
@@ -17,15 +15,15 @@ CHUNK_SIZE      = 64 * 1024 # 64 KB read chunks
 
 
 # ── Key Derivation ────────────────────────────────────────────────────────────
-"""
-Derive two 32-byte keys from a password using PBKDF2-HMAC-SHA256.
-
-Returns:
-    enc_key (32 bytes): AES-256 encryption key
-    mac_key (32 bytes): HMAC-SHA256 authentication key
-    salt    (16 bytes): Salt used for derivation (generated if not provided)
-"""
 def derive_keys(password: str, salt: bytes = None) -> tuple[bytes, bytes, bytes]:
+    """
+    Derive two 32-byte keys from a password using PBKDF2-HMAC-SHA256.
+
+    Returns:
+        enc_key (32 bytes): AES-256 encryption key
+        mac_key (32 bytes): HMAC-SHA256 authentication key
+        salt    (16 bytes): Salt used for derivation (generated if not provided)
+    """
     if salt is None:
         salt = os.urandom(SALT_SIZE)
 
@@ -39,7 +37,10 @@ def derive_keys(password: str, salt: bytes = None) -> tuple[bytes, bytes, bytes]
     enc_key = key_material[:KEY_SIZE]
     mac_key = key_material[KEY_SIZE:]
     return enc_key, mac_key, salt
+
+
 # ── Encryption ────────────────────────────────────────────────────────────────
+def encrypt_file(input_path: str, output_path: str, password: str) -> None:
     """
     Encrypt a file using AES-256-CBC and authenticate with HMAC-SHA256.
 
@@ -55,7 +56,6 @@ def derive_keys(password: str, salt: bytes = None) -> tuple[bytes, bytes, bytes]
         output_path: Path to write the encrypted output file.
         password:    Password used for key derivation.
     """
-def encrypt_file(input_path: str, output_path: str, password: str) -> None:
     enc_key, mac_key, salt = derive_keys(password)
     iv = os.urandom(IV_SIZE)
 
@@ -90,7 +90,10 @@ def encrypt_file(input_path: str, output_path: str, password: str) -> None:
         outfile.write(iv)       # 16 bytes
         outfile.write(mac_tag)  # 32 bytes
         outfile.write(ciphertext)
+
+
 # ── Decryption ────────────────────────────────────────────────────────────────
+def decrypt_file(input_path: str, output_path: str, password: str) -> None:
     """
     Decrypt and verify a file encrypted by encrypt_file().
 
@@ -110,7 +113,6 @@ def encrypt_file(input_path: str, output_path: str, password: str) -> None:
         InvalidSignature: If the HMAC check fails (file tampered or wrong password).
         ValueError:       If the file is too short to contain a valid header.
     """
-def decrypt_file(input_path: str, output_path: str, password: str) -> None:
     with open(input_path, "rb") as infile:
         header = infile.read(HEADER_SIZE)
 
@@ -159,7 +161,8 @@ def decrypt_file(input_path: str, output_path: str, password: str) -> None:
         if final:
             outfile.write(final)
 
-# ── For testing purposes ───────────────────────────────────────────────────────────
+
+# ── Self-test ─────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     import tempfile
 
